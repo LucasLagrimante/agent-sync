@@ -151,6 +151,11 @@ def _paths_equivalent(link_path: Path, target_str: str, actual_raw: str) -> bool
         return actual == expected_relative
 
 
+def _is_real_symlink(path: Path) -> bool:
+    """Retorna True apenas para symlinks reais (não junction points do Windows)."""
+    return path.is_symlink()
+
+
 def check_item(project_root: Path, item: CheckItem) -> Status:
     link_path = project_root / item.path
     actual_raw = _get_link_target(link_path)
@@ -165,8 +170,13 @@ def check_item(project_root: Path, item: CheckItem) -> Status:
             return "ok"
         return "missing"
 
-    # Deve ser symlink/junction apontando para item.target
+    # Deve ser symlink REAL apontando para item.target.
+    # Junction points (is_symlink()=False mas readlink funciona) são considerados
+    # wrong_target — git não os rastreia como symlinks e usam paths absolutos.
     if actual_raw is not None:
+        if not _is_real_symlink(link_path):
+            # É junction point — precisa ser substituído por symlink real
+            return "wrong_target"
         if _paths_equivalent(link_path, item.target, actual_raw):
             return "ok"
         return "wrong_target"
