@@ -5,3 +5,21 @@ venv/
 *.egg-info/
 dist/
 build/
+
+# OpenCode — gerado automaticamente
+.opencode/node_modules/
+.opencode/bun.lock
+.opencode/package-lock.json
+
+# Claude Code — gerado automaticamente
+.claude/settings.local.json
+
+# Gemini CLI — gerado automaticamente
+.gemini/tmp/
+
+# Cursor — gerado automaticamente
+.cursor/chat/
+
+# Logs de ferramentas
+.logs/
+.agents/.logs/

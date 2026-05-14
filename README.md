@@ -20,10 +20,13 @@ projeto/
 ├── .gemini/
 │   └── system.md                      → ../AGENTS.md (Gemini CLI)
 ├── .agents/
-│   ├── workflows/                     ← slash commands / workflows
-│   ├── skills/                        ← skills customizadas
+│   ├── workflows/                     ← slash commands / workflows (fonte canônica)
+│   ├── skills/                        ← skills customizadas (fonte canônica)
 │   └── commands                       → workflows
-└── .claude/
+├── .claude/
+│   ├── commands                       → ../.agents/commands
+│   └── skills                         → ../.agents/skills
+└── .opencode/
     ├── commands                       → ../.agents/commands
     └── skills                         → ../.agents/skills
 ```
@@ -102,6 +105,8 @@ Aplicar mudanças? (s/N): s
 | AC | `.agents/commands` | Symlink interno `commands → workflows` |
 | CC | `.claude/commands` | Claude Code slash commands |
 | CS | `.claude/skills` | Claude Code skills |
+| OC | `.opencode/commands` | OpenCode slash commands |
+| OS | `.opencode/skills` | OpenCode skills |
 
 ## Windows
 

@@ -27,7 +27,10 @@ repo/
 │   ├── workflows/                   (pasta real — workflows/slash commands)
 │   ├── skills/                      (pasta real — skills)
 │   └── commands                     → workflows  (alias para Claude Code)
-└── .claude/
+├── .claude/
+│   ├── commands                     → ../.agents/commands
+│   └── skills                       → ../.agents/skills
+└── .opencode/
     ├── commands                     → ../.agents/commands
     └── skills                       → ../.agents/skills
 ```

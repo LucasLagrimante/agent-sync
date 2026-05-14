@@ -40,6 +40,29 @@ console = Console(legacy_windows=False)
 
 # ─── Template mínimo de AGENTS.md ─────────────────────────────────────────────
 
+# Entradas de .gitignore geradas por ferramenta — adicionadas ao .gitignore do projeto
+GITIGNORE_ENTRIES: dict[str, list[str]] = {
+    ".claude": [
+        "# Claude Code — gerado automaticamente",
+        ".claude/settings.local.json",
+        ".claude/__pycache__/",
+    ],
+    ".opencode": [
+        "# OpenCode — gerado automaticamente",
+        ".opencode/node_modules/",
+        ".opencode/bun.lock",
+        ".opencode/package-lock.json",
+    ],
+    ".gemini": [
+        "# Gemini CLI — gerado automaticamente",
+        ".gemini/tmp/",
+    ],
+    ".cursor": [
+        "# Cursor — gerado automaticamente",
+        ".cursor/chat/",
+    ],
+}
+
 AGENTS_MD_TEMPLATE = """\
 # AGENTS.md
 
@@ -94,6 +117,10 @@ CHECKS = [
     # Symlinks .claude → .agents
     CheckItem("claude_cmd",    "CC",  ".claude/commands",                 "../.agents/commands", True),
     CheckItem("claude_sk",     "CS",  ".claude/skills",                   "../.agents/skills",   True),
+
+    # Symlinks .opencode → .agents
+    CheckItem("opencode_cmd",  "OC",  ".opencode/commands",               "../.agents/commands", True),
+    CheckItem("opencode_sk",   "OS",  ".opencode/skills",                 "../.agents/skills",   True),
 ]
 
 Status = Literal["ok", "missing", "wrong_target", "regular_file"]
@@ -210,7 +237,8 @@ STATUS_ICON = {
 
 LEGEND = (
     "AG=AGENTS  CL=CLAUDE  GM=GEMINI  CU=CURSOR  WS=WINDSURF  CP=COPILOT  GS=GEMINI/system\n"
-    "WF=.agents/workflows  SK=.agents/skills  AC=.agents/commands  CC=.claude/commands  CS=.claude/skills"
+    "WF=.agents/workflows  SK=.agents/skills  AC=.agents/commands  "
+    "CC=.claude/commands  CS=.claude/skills  OC=.opencode/commands  OS=.opencode/skills"
 )
 
 def render_table(projects: list[ProjectStatus]) -> None:
@@ -394,6 +422,35 @@ def make_symlink(link_path: Path, target: str, is_dir: bool) -> None:
         raise
 
 
+def update_gitignore(proj: ProjectStatus) -> None:
+    """Adiciona entradas de ferramentas ao .gitignore do projeto (sem duplicar)."""
+    gitignore_path = proj.path / ".gitignore"
+    existing = gitignore_path.read_text(encoding="utf-8") if gitignore_path.exists() else ""
+
+    lines_to_add: list[str] = []
+    for tool_dir, entries in GITIGNORE_ENTRIES.items():
+        # Só adiciona se o diretório da ferramenta existe ou vai ser criado
+        tool_path = proj.path / tool_dir
+        if not tool_path.exists() and not any(
+            c.item.path.startswith(tool_dir) for c in list_changes(proj)
+        ):
+            continue
+        for entry in entries:
+            # Ignora comentários e linhas já presentes
+            if entry.startswith("#") or entry.strip() in existing:
+                continue
+            lines_to_add.append(entry)
+
+    if not lines_to_add:
+        return
+
+    # Adiciona bloco ao final do .gitignore
+    block = "\n" + "\n".join(lines_to_add) + "\n"
+    with gitignore_path.open("a", encoding="utf-8") as f:
+        f.write(block)
+    console.print(f"  [dim].gitignore atualizado ({len(lines_to_add)} entradas)[/]")
+
+
 def apply_changes(proj: ProjectStatus) -> None:
     changes = list_changes(proj)
     created = 0
@@ -421,6 +478,8 @@ def apply_changes(proj: ProjectStatus) -> None:
         elif c.action == "skip":
             console.print(f"  [red]⚠[/]  {c.item.path}  [dim](pulado)[/]")
             skipped += 1
+
+    update_gitignore(proj)
 
     console.print(f"\n  [green]{created} alterações aplicadas[/]", end="")
     if skipped:
