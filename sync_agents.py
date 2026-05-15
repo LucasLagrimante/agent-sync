@@ -343,6 +343,33 @@ class Change:
     description: str
 
 
+@dataclass
+class FileRename:
+    src: Path
+    dst: Path
+
+
+def list_file_renames(proj: ProjectStatus) -> list[FileRename]:
+    """Detecta arquivos .md sem extensão canônica para GitHub Copilot."""
+    renames: list[FileRename] = []
+
+    checks = [
+        (proj.path / ".agents" / "workflows", ".prompt.md"),
+        (proj.path / ".agents" / "agents",    ".agent.md"),
+    ]
+    for folder, required_suffix in checks:
+        if not folder.is_dir() or folder.is_symlink():
+            continue
+        for f in sorted(folder.iterdir()):
+            if f.is_file() and f.suffix == ".md" and not f.name.endswith(required_suffix):
+                new_name = f.stem + required_suffix
+                dst = f.parent / new_name
+                if not dst.exists():
+                    renames.append(FileRename(src=f, dst=dst))
+
+    return renames
+
+
 def list_changes(proj: ProjectStatus) -> list[Change]:
     changes: list[Change] = []
 
@@ -376,7 +403,8 @@ def list_changes(proj: ProjectStatus) -> list[Change]:
 
 def preview_changes(proj: ProjectStatus) -> bool:
     changes = list_changes(proj)
-    if not changes:
+    renames = list_file_renames(proj)
+    if not changes and not renames:
         console.print(f"[green]✓ {proj.name} já está totalmente padronizado.[/]")
         return False
 
@@ -392,6 +420,9 @@ def preview_changes(proj: ProjectStatus) -> bool:
             console.print(f"  [yellow]↺[/] atualizar {c.description}")
         elif c.action == "skip":
             console.print(f"  [red]⚠ pular[/]    {c.description}")
+    for r in renames:
+        rel = r.src.relative_to(proj.path)
+        console.print(f"  [yellow]→[/] renomear  {rel} → [green]{r.dst.name}[/]")
     return True
 
 
@@ -487,6 +518,7 @@ def update_gitignore(proj: ProjectStatus) -> None:
 
 def apply_changes(proj: ProjectStatus) -> None:
     changes = list_changes(proj)
+    renames = list_file_renames(proj)
     created = 0
     skipped = 0
 
@@ -512,6 +544,12 @@ def apply_changes(proj: ProjectStatus) -> None:
         elif c.action == "skip":
             console.print(f"  [red]⚠[/]  {c.item.path}  [dim](pulado)[/]")
             skipped += 1
+
+    for r in renames:
+        r.src.rename(r.dst)
+        rel = r.src.relative_to(proj.path)
+        console.print(f"  [green]+[/]  {rel} → {r.dst.name}  [dim](renomeado)[/]")
+        created += 1
 
     update_gitignore(proj)
 
