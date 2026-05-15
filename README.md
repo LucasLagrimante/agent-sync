@@ -6,7 +6,7 @@ Escaneia um diretório com múltiplos projetos, mostra quais estão bem configur
 
 ## Como funciona
 
-O arquivo `AGENTS.md` na raiz do projeto é a **única fonte da verdade**. Todos os outros arquivos de config de IA são symlinks apontando para ele:
+O arquivo `AGENTS.md` na raiz do projeto é a **única fonte da verdade**. Todos os outros arquivos de config de IA são symlinks apontando para ele. Workflows e skills ficam em `.agents/` e são compartilhados entre todas as ferramentas via symlink direto:
 
 ```
 projeto/
@@ -20,16 +20,18 @@ projeto/
 ├── .gemini/
 │   └── system.md                      → ../AGENTS.md (Gemini CLI)
 ├── .agents/
-│   ├── workflows/                     ← slash commands / workflows (fonte canônica)
-│   ├── skills/                        ← skills customizadas (fonte canônica)
-│   └── commands                       → workflows
+│   ├── workflows/                     ← fonte canônica de slash commands
+│   ├── skills/                        ← fonte canônica de skills
+│   └── commands                       → workflows   (alias interno)
 ├── .claude/
-│   ├── commands                       → ../.agents/commands
+│   ├── commands                       → ../.agents/workflows
 │   └── skills                         → ../.agents/skills
 └── .opencode/
-    ├── commands                       → ../.agents/commands
+    ├── commands                       → ../.agents/workflows
     └── skills                         → ../.agents/skills
 ```
+
+> `.claude/commands` e `.opencode/commands` apontam **diretamente** para `.agents/workflows/`, não para `.agents/commands`. Isso evita cadeias de symlinks que causam erros no Windows.
 
 ## Instalação
 
@@ -48,29 +50,31 @@ python sync_agents.py
 
 O script vai:
 
-1. Escanear todos os subdiretórios e avaliar 12 itens canônicos por projeto
+1. Escanear todos os subdiretórios e avaliar **14 itens canônicos** por projeto
 2. Exibir uma tabela com o status de cada item (`✓` ok, `-` ausente, `↺` errado, `⚠` arquivo real)
 3. Deixar você escolher qual(is) projeto(s) padronizar
 4. Mostrar um preview das mudanças e pedir confirmação
-5. Aplicar os symlinks
+5. Aplicar os symlinks e atualizar o `.gitignore`
 
 ```
 agents-sync — Windows
-Escaneando /home/user/Projects...
+Escaneando C:\Users\user\Projects...
 
-  #  Projeto              AG  CL  GM  CU  WS  CP  GS  WF  SK  AC  CC  CS  Score
-  1  meu-projeto           ✓   ✓   -   -   -   -   -   ✓   ✓   ↺   ↺   ↺   5/12
-  2  outro-projeto         ✓   -   -   -   -   -   -   -   -   -   -   -   1/12
+  #  Projeto              AG  CL  GM  CU  WS  CP  GS  WF  SK  AC  CC  CS  OC  OS  Score
+  1  meu-projeto           ✓   ✓   -   -   -   -   -   ✓   ✓   ↺   ↺   ↺   -   -   5/14
+  2  outro-projeto         ✓   -   -   -   -   -   -   -   -   -   -   -   -   -   1/14
 
 Selecione projeto(s) (número, 1-3, 1 3 5, all, q): 1
 
 Mudanças para meu-projeto:
   + symlink   GEMINI.md → AGENTS.md
   + symlink   .cursorrules → AGENTS.md
-  ...
   ↺ atualizar .agents/commands → workflows  (era: junction point)
+  + symlink   .opencode/commands → ../.agents/workflows
+  ...
 
 Aplicar mudanças? (s/N): s
+  .gitignore atualizado (3 entradas)
 ```
 
 ### Opções
@@ -100,13 +104,25 @@ Aplicar mudanças? (s/N): s
 | WS | `.windsurfrules` | Windsurf (formato legacy) |
 | CP | `.github/copilot-instructions.md` | GitHub Copilot |
 | GS | `.gemini/system.md` | Gemini CLI (system prompt) |
-| WF | `.agents/workflows/` | Pasta de workflows |
-| SK | `.agents/skills/` | Pasta de skills |
-| AC | `.agents/commands` | Symlink interno `commands → workflows` |
-| CC | `.claude/commands` | Claude Code slash commands |
+| WF | `.agents/workflows/` | Pasta real — fonte dos slash commands |
+| SK | `.agents/skills/` | Pasta real — fonte das skills |
+| AC | `.agents/commands` | Alias interno `commands → workflows` |
+| CC | `.claude/commands` | Claude Code — aponta direto para `workflows/` |
 | CS | `.claude/skills` | Claude Code skills |
-| OC | `.opencode/commands` | OpenCode slash commands |
+| OC | `.opencode/commands` | OpenCode — aponta direto para `workflows/` |
 | OS | `.opencode/skills` | OpenCode skills |
+
+## .gitignore automático
+
+Ao sincronizar um projeto, o script adiciona automaticamente ao `.gitignore` as entradas de arquivos gerados por cada ferramenta:
+
+| Ferramenta | Entradas ignoradas |
+|---|---|
+| OpenCode | `.opencode/node_modules/`, `.opencode/bun.lock`, `.opencode/package-lock.json` |
+| Claude Code | `.claude/settings.local.json` |
+| Gemini CLI | `.gemini/tmp/` |
+| Cursor | `.cursor/chat/` |
+| Geral | `.logs/`, `.agents/.logs/` |
 
 ## Windows
 
@@ -115,4 +131,4 @@ Symlinks no Windows exigem uma das opções:
 - **Modo Desenvolvedor** (recomendado): Configurações → Sistema → Para Desenvolvedores
 - **Executar como Administrador**
 
-> **Junction points** são detectados e substituídos por symlinks reais. Junctions não são rastreados pelo git como symlinks e usam paths absolutos, o que os torna frágeis e não portáveis.
+**Junction points** são detectados e substituídos por symlinks reais. Junctions não são rastreados pelo git como symlinks (modo `120000`), usam paths absolutos e não funcionam em outros sistemas operacionais.
