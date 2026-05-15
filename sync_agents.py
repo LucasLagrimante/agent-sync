@@ -10,6 +10,7 @@ Uso:
 
 import os
 import sys
+import shutil
 import platform
 import argparse
 from pathlib import Path
@@ -349,6 +350,62 @@ class FileRename:
     dst: Path
 
 
+@dataclass
+class FileCopy:
+    src: Path  # arquivo fonte (em outro projeto)
+    dst: Path  # destino neste projeto
+
+
+# Pool: mapa de folder_key → {filename → Path} com todos os arquivos canônicos encontrados
+CanonicalPool = dict[str, dict[str, Path]]
+
+
+def collect_canonical_pool(projects: list[ProjectStatus]) -> CanonicalPool:
+    """Agrega todos os arquivos canônicos de todos os projetos.
+
+    Projetos com score maior vêm primeiro (sorted by score desc), então o primeiro
+    arquivo encontrado com determinado nome é preservado.
+    """
+    pool: CanonicalPool = {"workflows": {}, "agents": {}}
+
+    for proj in projects:
+        for folder_key, suffix in [("workflows", ".prompt.md"), ("agents", ".agent.md")]:
+            folder = proj.path / ".agents" / folder_key
+            if not folder.is_dir() or folder.is_symlink():
+                continue
+            for f in sorted(folder.iterdir()):
+                if f.is_file() and f.name.endswith(suffix):
+                    if f.name not in pool[folder_key]:
+                        pool[folder_key][f.name] = f
+
+    return pool
+
+
+def list_file_copies(proj: ProjectStatus, pool: CanonicalPool) -> list[FileCopy]:
+    """Lista arquivos do pool que estão faltando nas pastas canônicas do projeto."""
+    copies: list[FileCopy] = []
+
+    mapping = [
+        ("workflows", proj.path / ".agents" / "workflows"),
+        ("agents",    proj.path / ".agents" / "agents"),
+    ]
+
+    for pool_key, folder in mapping:
+        if folder.is_symlink():
+            continue  # não copiamos para dentro de symlinks
+        for name, src in pool[pool_key].items():
+            dst = folder / name
+            try:
+                if src.resolve() == dst.resolve():
+                    continue  # mesmo arquivo — já está neste projeto
+            except Exception:
+                pass
+            if not dst.exists():
+                copies.append(FileCopy(src=src, dst=dst))
+
+    return copies
+
+
 def list_file_renames(proj: ProjectStatus) -> list[FileRename]:
     """Detecta arquivos .md sem extensão canônica para GitHub Copilot."""
     renames: list[FileRename] = []
@@ -401,10 +458,11 @@ def list_changes(proj: ProjectStatus) -> list[Change]:
     return changes
 
 
-def preview_changes(proj: ProjectStatus) -> bool:
+def preview_changes(proj: ProjectStatus, pool: CanonicalPool | None = None) -> bool:
     changes = list_changes(proj)
     renames = list_file_renames(proj)
-    if not changes and not renames:
+    copies = list_file_copies(proj, pool) if pool is not None else []
+    if not changes and not renames and not copies:
         console.print(f"[green]✓ {proj.name} já está totalmente padronizado.[/]")
         return False
 
@@ -423,6 +481,10 @@ def preview_changes(proj: ProjectStatus) -> bool:
     for r in renames:
         rel = r.src.relative_to(proj.path)
         console.print(f"  [yellow]→[/] renomear  {rel} → [green]{r.dst.name}[/]")
+    for fc in copies:
+        rel = fc.dst.relative_to(proj.path)
+        src_proj = fc.src.parent.parent.parent.name
+        console.print(f"  [green]+[/] copiar    {rel}  [dim](de {src_proj})[/]")
     return True
 
 
@@ -516,9 +578,10 @@ def update_gitignore(proj: ProjectStatus) -> None:
     console.print(f"  [dim].gitignore atualizado ({len(lines_to_add)} entradas)[/]")
 
 
-def apply_changes(proj: ProjectStatus) -> None:
+def apply_changes(proj: ProjectStatus, pool: CanonicalPool | None = None) -> None:
     changes = list_changes(proj)
     renames = list_file_renames(proj)
+    copies = list_file_copies(proj, pool) if pool is not None else []
     created = 0
     skipped = 0
 
@@ -549,6 +612,14 @@ def apply_changes(proj: ProjectStatus) -> None:
         r.src.rename(r.dst)
         rel = r.src.relative_to(proj.path)
         console.print(f"  [green]+[/]  {rel} → {r.dst.name}  [dim](renomeado)[/]")
+        created += 1
+
+    for fc in copies:
+        fc.dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(fc.src, fc.dst)
+        rel = fc.dst.relative_to(proj.path)
+        src_proj = fc.src.parent.parent.parent.name
+        console.print(f"  [green]+[/]  {rel}  [dim](copiado de {src_proj})[/]")
         created += 1
 
     update_gitignore(proj)
@@ -590,9 +661,11 @@ def main() -> None:
         console.print("[dim]Saindo.[/]")
         return
 
+    pool = collect_canonical_pool(projects)
+
     has_changes = False
     for proj in selected:
-        if preview_changes(proj):
+        if preview_changes(proj, pool):
             has_changes = True
 
     if not has_changes:
@@ -607,7 +680,7 @@ def main() -> None:
     console.print()
     for proj in selected:
         console.print(f"[bold cyan]{proj.name}[/bold cyan]")
-        apply_changes(proj)
+        apply_changes(proj, pool)
         console.print()
 
     console.print("[green]Concluído.[/]")
