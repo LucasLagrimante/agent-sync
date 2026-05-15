@@ -404,22 +404,48 @@ def make_symlink(link_path: Path, target: str, is_dir: bool) -> None:
         link_path.rmdir()
 
     try:
-        if IS_WINDOWS:
-            link_path.symlink_to(target, target_is_directory=is_dir)
+        if IS_WINDOWS and is_dir:
+            # Symlinks de diretório com paths relativos contendo ".." não são
+            # resolvidos corretamente pelo Windows Explorer. Usar path absoluto.
+            abs_target = str((link_path.parent / target).resolve())
+            link_path.symlink_to(abs_target, target_is_directory=True)
+        elif IS_WINDOWS:
+            link_path.symlink_to(target, target_is_directory=False)
         else:
             link_path.symlink_to(target)
     except OSError as e:
         if IS_WINDOWS and getattr(e, "winerror", None) == 1314:
-            console.print(Panel(
-                "[red]Sem permissão para criar symlinks no Windows.[/]\n\n"
-                "Ative o Modo Desenvolvedor:\n"
-                "  Configurações → Sistema → Para Desenvolvedores → Modo Desenvolvedor\n\n"
-                "Ou execute o script como Administrador.",
-                title="Erro de permissão",
-                border_style="red",
-            ))
-            sys.exit(1)
-        raise
+            # Sem Developer Mode — fallback por tipo
+            if is_dir:
+                _make_junction(link_path, target)
+            else:
+                _make_hardlink(link_path, target)
+        else:
+            raise
+
+
+def _make_junction(link_path: Path, target: str) -> None:
+    """Junction point como fallback para symlink de dir sem Developer Mode."""
+    import subprocess
+    abs_target = str((link_path.parent / target).resolve())
+    r = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(link_path), abs_target],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        raise OSError(f"mklink /J falhou: {r.stderr.strip()}")
+    console.print(
+        "  [yellow]⚡ junction criado[/] [dim](ative Developer Mode para symlink real)[/]"
+    )
+
+
+def _make_hardlink(link_path: Path, target: str) -> None:
+    """Hardlink como fallback para symlink de arquivo sem Developer Mode."""
+    abs_target = (link_path.parent / target).resolve()
+    os.link(abs_target, link_path)
+    console.print(
+        "  [yellow]⚡ hardlink criado[/] [dim](ative Developer Mode para symlink real)[/]"
+    )
 
 
 def update_gitignore(proj: ProjectStatus) -> None:
