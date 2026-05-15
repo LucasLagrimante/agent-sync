@@ -16,22 +16,26 @@ projeto/
 ├── .cursorrules                       → AGENTS.md   (Cursor)
 ├── .windsurfrules                     → AGENTS.md   (Windsurf)
 ├── .github/
-│   └── copilot-instructions.md        → ../AGENTS.md (GitHub Copilot)
+│   ├── copilot-instructions.md        → ../AGENTS.md
+│   ├── agents/                        → ../.agents/agents   (custom agents .agent.md)
+│   └── prompts/                       → ../.agents/workflows (prompt files)
 ├── .gemini/
 │   └── system.md                      → ../AGENTS.md (Gemini CLI)
 ├── .agents/
 │   ├── workflows/                     ← fonte canônica de slash commands
 │   ├── skills/                        ← fonte canônica de skills
+│   ├── agents/                        ← fonte canônica de custom agents (.agent.md)
 │   └── commands                       → workflows   (alias interno)
 ├── .claude/
 │   ├── commands                       → ../.agents/workflows
-│   └── skills                         → ../.agents/skills
+│   ├── skills                         → ../.agents/skills
+│   └── agents/                        → ../.agents/agents
 └── .opencode/
     ├── commands                       → ../.agents/workflows
     └── skills                         → ../.agents/skills
 ```
 
-> `.claude/commands` e `.opencode/commands` apontam **diretamente** para `.agents/workflows/`, não para `.agents/commands`. Isso evita cadeias de symlinks que causam erros no Windows.
+> Symlinks de diretório apontam **diretamente** para o destino final (ex: `../.agents/workflows`), sem passar por aliases intermediários. Isso evita cadeias de symlinks que causam erros no Windows.
 
 ## Instalação
 
@@ -50,7 +54,7 @@ python sync_agents.py
 
 O script vai:
 
-1. Escanear todos os subdiretórios e avaliar **14 itens canônicos** por projeto
+1. Escanear todos os subdiretórios e avaliar **18 itens canônicos** por projeto
 2. Exibir uma tabela com o status de cada item (`✓` ok, `-` ausente, `↺` errado, `⚠` arquivo real)
 3. Deixar você escolher qual(is) projeto(s) padronizar
 4. Mostrar um preview das mudanças e pedir confirmação
@@ -60,9 +64,9 @@ O script vai:
 agents-sync — Windows
 Escaneando C:\Users\user\Projects...
 
-  #  Projeto              AG  CL  GM  CU  WS  CP  GS  WF  SK  AC  CC  CS  OC  OS  Score
-  1  meu-projeto           ✓   ✓   -   -   -   -   -   ✓   ✓   ↺   ↺   ↺   -   -   5/14
-  2  outro-projeto         ✓   -   -   -   -   -   -   -   -   -   -   -   -   -   1/14
+  #  Projeto              AG  CL  GM  CU  WS  CP  GS  WF  SK  AA  AC  CC  CS  CA  OC  OS  GA  GP  Score
+  1  meu-projeto           ✓   ✓   -   -   -   -   -   ✓   ✓   -   ↺   ↺   ↺   -   -   -   -   -   5/18
+  2  outro-projeto         ✓   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   1/18
 
 Selecione projeto(s) (número, 1-3, 1 3 5, all, q): 1
 
@@ -102,15 +106,19 @@ Aplicar mudanças? (s/N): s
 | GM | `GEMINI.md` | Gemini CLI (contexto) |
 | CU | `.cursorrules` | Cursor (formato legacy) |
 | WS | `.windsurfrules` | Windsurf (formato legacy) |
-| CP | `.github/copilot-instructions.md` | GitHub Copilot |
+| CP | `.github/copilot-instructions.md` | GitHub Copilot — instruções globais |
 | GS | `.gemini/system.md` | Gemini CLI (system prompt) |
 | WF | `.agents/workflows/` | Pasta real — fonte dos slash commands |
 | SK | `.agents/skills/` | Pasta real — fonte das skills |
+| AA | `.agents/agents/` | Pasta real — fonte dos custom agents (`.agent.md`) |
 | AC | `.agents/commands` | Alias interno `commands → workflows` |
-| CC | `.claude/commands` | Claude Code — aponta direto para `workflows/` |
+| CC | `.claude/commands` | Claude Code — slash commands |
 | CS | `.claude/skills` | Claude Code skills |
-| OC | `.opencode/commands` | OpenCode — aponta direto para `workflows/` |
+| CA | `.claude/agents/` | Claude Code / VS Code — sub-agents |
+| OC | `.opencode/commands` | OpenCode — slash commands |
 | OS | `.opencode/skills` | OpenCode skills |
+| GA | `.github/agents/` | GitHub Copilot — custom agents (`.agent.md`) |
+| GP | `.github/prompts/` | GitHub Copilot — prompt files (slash commands) |
 
 ## .gitignore automático
 

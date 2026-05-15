@@ -108,19 +108,25 @@ CHECKS = [
     CheckItem("gemini_sys",    "GS",  ".gemini/system.md",                "../AGENTS.md",        False),
 
     # Estrutura .agents — pastas reais
-    CheckItem("agents_wf",     "WF",  ".agents/workflows",                None,                  True),
-    CheckItem("agents_sk",     "SK",  ".agents/skills",                   None,                  True),
+    CheckItem("agents_wf",     "WF",  ".agents/workflows",                None,                   True),
+    CheckItem("agents_sk",     "SK",  ".agents/skills",                   None,                   True),
+    CheckItem("agents_ag",     "AA",  ".agents/agents",                   None,                   True),
 
-    # Symlink interno: .agents/commands → workflows (alias para Claude Code)
-    CheckItem("agents_cmd",    "AC",  ".agents/commands",                 "workflows",           True),
+    # Symlink interno: .agents/commands → workflows (alias)
+    CheckItem("agents_cmd",    "AC",  ".agents/commands",                 "workflows",            True),
 
-    # Symlinks .claude → .agents (aponta direto para workflows/skills, evita cadeia no Windows)
+    # Symlinks .claude → .agents (aponta direto, evita cadeia no Windows)
     CheckItem("claude_cmd",    "CC",  ".claude/commands",                 "../.agents/workflows", True),
     CheckItem("claude_sk",     "CS",  ".claude/skills",                   "../.agents/skills",    True),
+    CheckItem("claude_ag",     "CA",  ".claude/agents",                   "../.agents/agents",    True),
 
-    # Symlinks .opencode → .agents (idem)
+    # Symlinks .opencode → .agents
     CheckItem("opencode_cmd",  "OC",  ".opencode/commands",               "../.agents/workflows", True),
     CheckItem("opencode_sk",   "OS",  ".opencode/skills",                 "../.agents/skills",    True),
+
+    # Symlinks .github → .agents (GitHub Copilot agents + prompts)
+    CheckItem("github_agents", "GA",  ".github/agents",                   "../.agents/agents",    True),
+    CheckItem("github_prompts","GP",  ".github/prompts",                  "../.agents/workflows", True),
 ]
 
 Status = Literal["ok", "missing", "wrong_target", "regular_file"]
@@ -237,8 +243,10 @@ STATUS_ICON = {
 
 LEGEND = (
     "AG=AGENTS  CL=CLAUDE  GM=GEMINI  CU=CURSOR  WS=WINDSURF  CP=COPILOT  GS=GEMINI/system\n"
-    "WF=.agents/workflows  SK=.agents/skills  AC=.agents/commands(alias)\n"
-    "CC=.claude/commands→workflows  CS=.claude/skills  OC=.opencode/commands→workflows  OS=.opencode/skills"
+    "WF=.agents/workflows  SK=.agents/skills  AA=.agents/agents  AC=.agents/commands(alias)\n"
+    "CC=.claude/commands  CS=.claude/skills  CA=.claude/agents\n"
+    "OC=.opencode/commands  OS=.opencode/skills\n"
+    "GA=.github/agents  GP=.github/prompts"
 )
 
 def render_table(projects: list[ProjectStatus]) -> None:

@@ -16,23 +16,28 @@ O script escaneia todos os subdiretórios, exibe uma tabela de conformidade e de
 
 ```
 repo/
-├── AGENTS.md                        ← canônico (Codex/OpenAI)
-├── CLAUDE.md                        → AGENTS.md
-├── GEMINI.md                        → AGENTS.md
-├── .cursorrules                     → AGENTS.md
-├── .windsurfrules                   → AGENTS.md
-├── .github/copilot-instructions.md  → ../AGENTS.md
-├── .gemini/system.md                → ../AGENTS.md
+├── AGENTS.md                          ← canônico (Codex/OpenAI)
+├── CLAUDE.md                          → AGENTS.md
+├── GEMINI.md                          → AGENTS.md
+├── .cursorrules                       → AGENTS.md
+├── .windsurfrules                     → AGENTS.md
+├── .github/
+│   ├── copilot-instructions.md        → ../AGENTS.md
+│   ├── agents/                        → ../.agents/agents   (custom agents .agent.md)
+│   └── prompts/                       → ../.agents/workflows (prompt files)
+├── .gemini/system.md                  → ../AGENTS.md
 ├── .agents/
-│   ├── workflows/                   (pasta real — workflows/slash commands)
-│   ├── skills/                      (pasta real — skills)
-│   └── commands                     → workflows  (alias para Claude Code)
+│   ├── workflows/                     (pasta real — slash commands)
+│   ├── skills/                        (pasta real — skills)
+│   ├── agents/                        (pasta real — custom agents .agent.md)
+│   └── commands                       → workflows  (alias)
 ├── .claude/
-│   ├── commands                     → ../.agents/commands
-│   └── skills                       → ../.agents/skills
+│   ├── commands                       → ../.agents/workflows
+│   ├── skills                         → ../.agents/skills
+│   └── agents/                        → ../.agents/agents
 └── .opencode/
-    ├── commands                     → ../.agents/commands
-    └── skills                       → ../.agents/skills
+    ├── commands                       → ../.agents/workflows
+    └── skills                         → ../.agents/skills
 ```
 
 ## Dependência

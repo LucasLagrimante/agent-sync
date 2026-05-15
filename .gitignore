@@ -23,3 +23,5 @@ build/
 # Logs de ferramentas
 .logs/
 .agents/.logs/
+
+.claude/__pycache__/
